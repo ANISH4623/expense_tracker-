@@ -1,0 +1,85 @@
+scalar Date @specifiedBy(url: "https://scalars.graphql.org/andimarek/date-time")
+
+type User {
+    id: ID!
+    firstName: String!
+    lastName: String!
+    email: String!
+    expenses: [Expense]
+    incomes: [Income]
+}
+
+type Expense {
+    id: ID!
+    createdAt: Date
+    updatedAt: Date
+    deletedAt: Date
+    userId: ID!
+    amount: Float!
+    category: String!
+}
+
+type Income {
+    id: ID!
+    createdAt: Date
+    updatedAt: Date
+    deletedAt: Date
+    userId: ID!
+    amount: Float!
+    category: String!
+}
+
+type Query {
+    users: [User!]!
+    user(id: ID!): User
+    expenses(userId: ID!): [Expense!]!
+    incomes(userId: ID!): [Income!]!
+}
+
+type Mutation {
+    createUser(userInput: CreateUserInput!): User!
+    updateUser(id: ID!, updateUserInput: UpdateUserInput!): User
+    deleteUser(id: ID!): Boolean!
+    createExpense(expenseInput: CreateExpenseInput!): Expense!
+    updateExpense(id: ID!, updateExpenseInput: UpdateExpenseInput!): Expense
+    deleteExpense(id: ID!): Boolean!
+    createIncome(incomeInput: CreateIncomeInput!): Income!
+    updateIncome(id: ID!, updateIncomeInput: UpdateIncomeInput!): Income
+    deleteIncome(id: ID!): Boolean!
+}
+
+input CreateUserInput {
+    firstName: String!
+    lastName: String!
+    email: String!
+    password: String!
+}
+
+input UpdateUserInput {
+    firstName: String
+    lastName: String
+    email: String
+    password: String
+}
+
+input CreateExpenseInput {
+    userId: ID!
+    amount: Float!
+    category: String!
+}
+
+input UpdateExpenseInput {
+    amount: Float
+    category: String
+}
+
+input CreateIncomeInput {
+    userId: ID!
+    amount: Float!
+    category: String!
+}
+
+input UpdateIncomeInput {
+    amount: Float
+    category: String
+}
