@@ -49,7 +49,7 @@ var expenseType = graphql.NewObject(graphql.ObjectConfig{
 	Name: "Expense",
 	Fields: graphql.Fields{
 		"id": &graphql.Field{
-			Type: graphql.String,
+			Type: graphql.Int,
 		},
 		"createdAt": &graphql.Field{
 			Type: graphql.String,
@@ -104,14 +104,14 @@ var incomeType = graphql.NewObject(graphql.ObjectConfig{
 var rootQuery = graphql.NewObject(graphql.ObjectConfig{
 	Name: "RootQuery",
 	Fields: graphql.Fields{
-		"users": &graphql.Field{
-			Type: graphql.NewList(userType),
-			Resolve: func(params graphql.ResolveParams) (interface{}, error) {
-				var users []models.User
-				database.Database.Db.Find(&users)
-				return users, nil
-			},
-		},
+		//"users": &graphql.Field{
+		//	Type: graphql.NewList(userType),
+		//	Resolve: func(params graphql.ResolveParams) (interface{}, error) {
+		//		var users []models.User
+		//		database.Database.Db.Find(&users)
+		//		return users, nil
+		//	},
+		//},
 		"user": &graphql.Field{
 			Type: userType,
 			Args: graphql.FieldConfigArgument{
@@ -156,8 +156,75 @@ var rootQuery = graphql.NewObject(graphql.ObjectConfig{
 		},
 	},
 })
+var mutationType = graphql.NewObject(graphql.ObjectConfig{
+	Name: "Mutation",
+	Fields: graphql.Fields{
+		"create": &graphql.Field{
+			Type:        expenseType,
+			Description: "Create a new Expense",
+			Args: graphql.FieldConfigArgument{
+				"userId": &graphql.ArgumentConfig{
+					Type: graphql.NewNonNull(graphql.Int),
+				},
+				"amount":   &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.Float)},
+				"category": &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.String)},
+			},
+			Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+				userId, _ := p.Args["userId"].(int)
+				var expense models.Expense
+				expense.UserID = uint(userId)
+				expense.Amount = p.Args["amount"].(float64)
+				expense.Category = p.Args["category"].(string)
+				database.Database.Db.Create(&expense)
+				return expense, nil
+			},
+		},
+		"create1": &graphql.Field{
+			Type:        incomeType,
+			Description: "Create a new Income",
+			Args: graphql.FieldConfigArgument{
+				"userId": &graphql.ArgumentConfig{
+					Type: graphql.NewNonNull(graphql.Int),
+				},
+				"amount":   &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.Float)},
+				"category": &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.String)},
+			},
+			Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+				userId, _ := p.Args["userId"].(int)
+				var income models.Income
+				income.UserID = uint(userId)
+				income.Amount = p.Args["amount"].(float64)
+				income.Category = p.Args["category"].(string)
+				database.Database.Db.Create(&income)
+				return income, nil
+			},
+		},
+		"update": &graphql.Field{
+			Type:        expenseType,
+			Description: "update expense ",
+			Args: graphql.FieldConfigArgument{
+				"userId": &graphql.ArgumentConfig{
+					Type: graphql.Int,
+				},
+				"Id":       &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.Int)},
+				"amount":   &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.Float)},
+				"category": &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.String)},
+			},
+			Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+				var expense models.Expense
+				expense.UserID = uint(p.Args["userId"].(int))
+				expense.Amount = p.Args["amount"].(float64)
+				expense.Category = p.Args["category"].(string)
+				expense.ID = uint(p.Args["Id"].(int))
+				database.Database.Db.Updates(&expense)
+				return expense, nil
+			},
+		},
+	},
+})
 
 // Define the schema
 var schema, _ = graphql.NewSchema(graphql.SchemaConfig{
-	Query: rootQuery,
+	Query:    rootQuery,
+	Mutation: mutationType,
 })

@@ -3,14 +3,14 @@ package controllers
 import (
 	"awesomeProject1/database"
 	"awesomeProject1/helpers"
+	"awesomeProject1/middleware"
 	"awesomeProject1/models"
 	"awesomeProject1/serializers"
 	"github.com/gin-gonic/gin"
 	validate "github.com/go-playground/validator/v10"
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt"
 	"golang.org/x/crypto/bcrypt"
 	"net/http"
-	"time"
 )
 
 func UserResponse(user models.User) serializers.UserSerializer {
@@ -67,30 +67,38 @@ func Login() gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Credentials"})
 			return
 		}
-		token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-			"sub": user.ID,
-			"exp": time.Now().Add(time.Hour * 24 * 30).Unix(),
-		})
-		tokenString, err := token.SignedString([]byte(helpers.AppConfig.SECRET_KEY))
-
+		token, err := middleware.TokenController.CreateToken(user.ID)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error": "Failed to create token",
-			})
-			return
+			c.JSON(http.StatusInternalServerError, gin.H{"err": err.Error()})
 		}
 		c.SetSameSite(http.SameSiteLaxMode)
-		c.SetCookie("Authorization", tokenString, 3600*24*30, "", "", false, true)
-		c.JSON(
-			http.StatusOK,
-			gin.H{"data": UserResponse(user)},
-		)
+		c.SetCookie("jwt", token, 3600*24, "", "", false, true)
+		c.JSON(http.StatusOK, gin.H{"data": UserResponse(user), "token": token})
 
+	}
+}
+func User() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		cookie, err := c.Request.Cookie("jwt")
+		if err != nil {
+			return
+		}
+		token, err := jwt.ParseWithClaims(cookie.Value, &jwt.StandardClaims{}, func(token *jwt.Token) (interface{}, error) {
+			return []byte("secret"), nil
+		})
+		if err != nil {
+			c.AbortWithStatus(http.StatusUnauthorized)
+			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		}
+		claims := token.Claims.(*jwt.StandardClaims)
+		var user models.User
+		database.Database.Db.Where("id = ?", claims.Subject).First(&user)
+		c.JSON(200, user)
 	}
 }
 func Logout() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		helpers.ClearCookie(c, "authorization")
+		helpers.ClearCookie(c, "jwt")
 		c.JSON(http.StatusOK, gin.H{"Message": "Logged out Successfully"})
 	}
 }

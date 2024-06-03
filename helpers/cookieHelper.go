@@ -8,7 +8,7 @@ import (
 )
 
 func SetCookie(c *gin.Context, name string, value string, expiration time.Time) {
-	cookie := buildCookie(name, value, expiration.Hour())
+	cookie := BuildCookie(name, value, expiration.Hour())
 	http.SetCookie(c.Writer, cookie)
 }
 
@@ -24,7 +24,7 @@ func ClearCookie(c *gin.Context, name string) {
 
 }
 
-func buildCookie(name string, value string, expires int) *http.Cookie {
+func BuildCookie(name string, value string, expires int) *http.Cookie {
 	cookie := &http.Cookie{
 		Name:     name,
 		Value:    value,
