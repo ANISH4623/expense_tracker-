@@ -3,6 +3,8 @@ package main
 import (
 	"awesomeProject1/database"
 	"awesomeProject1/models"
+	_ "context"
+	"errors"
 
 	"github.com/graphql-go/graphql"
 )
@@ -49,13 +51,13 @@ var expenseType = graphql.NewObject(graphql.ObjectConfig{
 	Name: "Expense",
 	Fields: graphql.Fields{
 		"id": &graphql.Field{
-			Type: graphql.Int,
+			Type: graphql.String,
 		},
 		"createdAt": &graphql.Field{
-			Type: graphql.String,
+			Type: graphql.DateTime,
 		},
 		"updatedAt": &graphql.Field{
-			Type: graphql.String,
+			Type: graphql.DateTime,
 		},
 		"deletedAt": &graphql.Field{
 			Type: graphql.String,
@@ -80,13 +82,13 @@ var incomeType = graphql.NewObject(graphql.ObjectConfig{
 			Type: graphql.String,
 		},
 		"createdAt": &graphql.Field{
-			Type: graphql.String,
+			Type: graphql.DateTime,
 		},
 		"updatedAt": &graphql.Field{
-			Type: graphql.String,
+			Type: graphql.DateTime,
 		},
 		"deletedAt": &graphql.Field{
-			Type: graphql.String,
+			Type: graphql.DateTime,
 		},
 		"userId": &graphql.Field{
 			Type: graphql.String,
@@ -104,14 +106,14 @@ var incomeType = graphql.NewObject(graphql.ObjectConfig{
 var rootQuery = graphql.NewObject(graphql.ObjectConfig{
 	Name: "RootQuery",
 	Fields: graphql.Fields{
-		//"users": &graphql.Field{
-		//	Type: graphql.NewList(userType),
-		//	Resolve: func(params graphql.ResolveParams) (interface{}, error) {
-		//		var users []models.User
-		//		database.Database.Db.Find(&users)
-		//		return users, nil
-		//	},
-		//},
+		"users": &graphql.Field{
+			Type: graphql.NewList(userType),
+			Resolve: func(params graphql.ResolveParams) (interface{}, error) {
+				var users []models.User
+				database.Database.Db.Find(&users)
+				return users, nil
+			},
+		},
 		"user": &graphql.Field{
 			Type: userType,
 			Args: graphql.FieldConfigArgument{
@@ -128,13 +130,8 @@ var rootQuery = graphql.NewObject(graphql.ObjectConfig{
 		},
 		"expenses": &graphql.Field{
 			Type: graphql.NewList(expenseType),
-			Args: graphql.FieldConfigArgument{
-				"userId": &graphql.ArgumentConfig{
-					Type: graphql.String,
-				},
-			},
 			Resolve: func(params graphql.ResolveParams) (interface{}, error) {
-				userId, _ := params.Args["userId"].(string)
+				userId := uint(params.Context.Value("user_id").(int64))
 				var expenses []models.Expense
 				database.Database.Db.Where("user_id = ?", userId).Find(&expenses)
 				return expenses, nil
@@ -142,13 +139,8 @@ var rootQuery = graphql.NewObject(graphql.ObjectConfig{
 		},
 		"incomes": &graphql.Field{
 			Type: graphql.NewList(incomeType),
-			Args: graphql.FieldConfigArgument{
-				"userId": &graphql.ArgumentConfig{
-					Type: graphql.String,
-				},
-			},
 			Resolve: func(params graphql.ResolveParams) (interface{}, error) {
-				userId, _ := params.Args["userId"].(string)
+				userId := uint(params.Context.Value("user_id").(int64))
 				var incomes []models.Income
 				database.Database.Db.Where("user_id = ?", userId).Find(&incomes)
 				return incomes, nil
@@ -156,68 +148,112 @@ var rootQuery = graphql.NewObject(graphql.ObjectConfig{
 		},
 	},
 })
-var mutationType = graphql.NewObject(graphql.ObjectConfig{
-	Name: "Mutation",
+
+// Define the root mutation
+var rootMutation = graphql.NewObject(graphql.ObjectConfig{
+	Name: "RootMutation",
 	Fields: graphql.Fields{
-		"create": &graphql.Field{
-			Type:        expenseType,
-			Description: "Create a new Expense",
+		"createExpense": &graphql.Field{
+			Type: expenseType,
 			Args: graphql.FieldConfigArgument{
-				"userId": &graphql.ArgumentConfig{
-					Type: graphql.NewNonNull(graphql.Int),
+				"amount": &graphql.ArgumentConfig{
+					Type: graphql.NewNonNull(graphql.Float),
 				},
-				"amount":   &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.Float)},
-				"category": &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.String)},
+				"category": &graphql.ArgumentConfig{
+					Type: graphql.NewNonNull(graphql.String),
+				},
 			},
-			Resolve: func(p graphql.ResolveParams) (interface{}, error) {
-				userId, _ := p.Args["userId"].(int)
-				var expense models.Expense
-				expense.UserID = uint(userId)
-				expense.Amount = p.Args["amount"].(float64)
-				expense.Category = p.Args["category"].(string)
+			Resolve: func(params graphql.ResolveParams) (interface{}, error) {
+				userId := uint(params.Context.Value("user_id").(int64))
+
+				expense := models.Expense{
+					UserID:   userId,
+					Amount:   params.Args["amount"].(float64),
+					Category: params.Args["category"].(string),
+				}
 				database.Database.Db.Create(&expense)
 				return expense, nil
 			},
 		},
-		"create1": &graphql.Field{
-			Type:        incomeType,
-			Description: "Create a new Income",
+		"updateExpense": &graphql.Field{
+			Type: expenseType,
 			Args: graphql.FieldConfigArgument{
-				"userId": &graphql.ArgumentConfig{
-					Type: graphql.NewNonNull(graphql.Int),
+				"id": &graphql.ArgumentConfig{
+					Type: graphql.NewNonNull(graphql.String),
 				},
-				"amount":   &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.Float)},
-				"category": &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.String)},
+				"amount": &graphql.ArgumentConfig{
+					Type: graphql.Float,
+				},
+				"category": &graphql.ArgumentConfig{
+					Type: graphql.String,
+				},
 			},
-			Resolve: func(p graphql.ResolveParams) (interface{}, error) {
-				userId, _ := p.Args["userId"].(int)
-				var income models.Income
-				income.UserID = uint(userId)
-				income.Amount = p.Args["amount"].(float64)
-				income.Category = p.Args["category"].(string)
+			Resolve: func(params graphql.ResolveParams) (interface{}, error) {
+				userId := uint(params.Context.Value("user_id").(int64))
+				var expense models.Expense
+				database.Database.Db.First(&expense, params.Args["id"].(uint))
+				if expense.UserID != userId {
+					return nil, errors.New("unauthorized")
+				}
+				if amount, ok := params.Args["amount"].(float64); ok {
+					expense.Amount = amount
+				}
+				if category, ok := params.Args["category"].(string); ok {
+					expense.Category = category
+				}
+				database.Database.Db.Save(&expense)
+				return expense, nil
+			},
+		},
+		"createIncome": &graphql.Field{
+			Type: incomeType,
+			Args: graphql.FieldConfigArgument{
+				"amount": &graphql.ArgumentConfig{
+					Type: graphql.NewNonNull(graphql.Float),
+				},
+				"category": &graphql.ArgumentConfig{
+					Type: graphql.NewNonNull(graphql.String),
+				},
+			},
+			Resolve: func(params graphql.ResolveParams) (interface{}, error) {
+				userId := uint(params.Context.Value("user_id").(int64))
+				income := models.Income{
+					UserID:   userId,
+					Amount:   params.Args["amount"].(float64),
+					Category: params.Args["category"].(string),
+				}
 				database.Database.Db.Create(&income)
 				return income, nil
 			},
 		},
-		"update": &graphql.Field{
-			Type:        expenseType,
-			Description: "update expense ",
+		"updateIncome": &graphql.Field{
+			Type: incomeType,
 			Args: graphql.FieldConfigArgument{
-				"userId": &graphql.ArgumentConfig{
-					Type: graphql.Int,
+				"id": &graphql.ArgumentConfig{
+					Type: graphql.NewNonNull(graphql.String),
 				},
-				"Id":       &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.Int)},
-				"amount":   &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.Float)},
-				"category": &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.String)},
+				"amount": &graphql.ArgumentConfig{
+					Type: graphql.Float,
+				},
+				"category": &graphql.ArgumentConfig{
+					Type: graphql.String,
+				},
 			},
-			Resolve: func(p graphql.ResolveParams) (interface{}, error) {
-				var expense models.Expense
-				expense.UserID = uint(p.Args["userId"].(int))
-				expense.Amount = p.Args["amount"].(float64)
-				expense.Category = p.Args["category"].(string)
-				expense.ID = uint(p.Args["Id"].(int))
-				database.Database.Db.Updates(&expense)
-				return expense, nil
+			Resolve: func(params graphql.ResolveParams) (interface{}, error) {
+				userId := uint(params.Context.Value("user_id").(int64))
+				var income models.Income
+				database.Database.Db.First(&income, params.Args["id"].(uint))
+				if income.UserID != userId {
+					return nil, errors.New("unauthorized")
+				}
+				if amount, ok := params.Args["amount"].(float64); ok {
+					income.Amount = amount
+				}
+				if category, ok := params.Args["category"].(string); ok {
+					income.Category = category
+				}
+				database.Database.Db.Save(&income)
+				return income, nil
 			},
 		},
 	},
@@ -226,5 +262,5 @@ var mutationType = graphql.NewObject(graphql.ObjectConfig{
 // Define the schema
 var schema, _ = graphql.NewSchema(graphql.SchemaConfig{
 	Query:    rootQuery,
-	Mutation: mutationType,
+	Mutation: rootMutation,
 })
