@@ -37,7 +37,7 @@ type Query {
 }
 
 type Mutation {
-    createUser(userInput: CreateUserInput!): User!
+
     updateUser(id: ID!, updateUserInput: UpdateUserInput!): User
     deleteUser(id: ID!): Boolean!
     createExpense(expenseInput: CreateExpenseInput!): Expense!

@@ -12,16 +12,19 @@ import (
 	"time"
 )
 
+// Defining the Playground handler
+
 func main() {
+	graphqlHandler := handler.New(&handler.Config{
+		Schema: &schema,
+		Pretty: true,
+	})
 
 	helpers.LoadConfig(".env")
 	database.Connect()
 	router := gin.New()
 	middleware.TokenController = helpers.NewJWTToken(helpers.AppConfig.SECRET_KEY)
-	graphqlHandler := handler.New(&handler.Config{
-		Schema: &schema,
-		Pretty: true,
-	})
+
 	router.Use(cors.New(cors.Config{
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE"},
 		AllowHeaders:     []string{"Access-Control-Allow-Headers", "Content-Type", "Content-Length", " Accept-Encoding", " X-CSRF-Token", "Authorization", "accept", " origin", "Cache-Control", " X-Requested-With", "set-cookie"},

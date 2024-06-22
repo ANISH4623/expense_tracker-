@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"awesomeProject1/helpers"
+	"context"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"strings"
@@ -33,7 +34,10 @@ func RequireAuth() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
+		ctx := context.WithValue(c.Request.Context(), "user_id", userId)
+		c.Request = c.Request.WithContext(ctx)
 
-		c.Set("user_id", userId)
+		c.Next()
+
 	}
 }
