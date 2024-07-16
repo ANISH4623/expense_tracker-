@@ -16,3 +16,4 @@ Income Entry: Users can easily record their incomes  with details like category,
 Visualization: Interactive charts or graphs can provide insights into spending patterns and budget allocation.
 
 Authentication : If user accounts are required, implement secure authentication using JWT (JSON Web Tokens) or other suitable methods.
+to start server go run main.go
